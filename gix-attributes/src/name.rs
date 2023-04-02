@@ -1,4 +1,4 @@
-use bstr::BString;
+use bstr::{BStr, BString, ByteSlice};
 
 use crate::{Name, NameRef};
 
@@ -17,6 +17,25 @@ impl<'a> NameRef<'a> {
 impl AsRef<str> for NameRef<'_> {
     fn as_ref(&self) -> &str {
         self.0
+    }
+}
+
+impl<'a> TryFrom<&'a BStr> for NameRef<'a> {
+    type Error = Error;
+
+    fn try_from(attr: &'a BStr) -> Result<Self, Self::Error> {
+        fn attr_valid(attr: &BStr) -> bool {
+            if attr.first() == Some(&b'-') {
+                return false;
+            }
+
+            attr.bytes()
+                .all(|b| matches!(b, b'-' | b'.' | b'_' | b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9'))
+        }
+
+        attr_valid(attr)
+            .then(|| NameRef(attr.to_str().expect("no illformed utf8")))
+            .ok_or_else(|| Error { attribute: attr.into() })
     }
 }
 
